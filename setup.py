@@ -44,10 +44,12 @@ def setup_miccs():
     from numpy.distutils.system_info import get_info
 
     lapack_info = get_info('lapack_opt',1)
-    sources = [ 'miccs/miccs_core.f90',]
+    sources = ['miccs/optimize/coord_desc.f90', 'miccs/optimize/coord_desc_init.f90',
+               'miccs/optimize/coord_desc_iter.f90', 
+               'miccs/optimize/coord_desc_iter_p.f90']
 
     if lapack_info:
-        ext = Extension(name='miccs_core', sources=sources,
+        ext = Extension(name='miccs.optimize', sources=sources,
                         **lapack_info)
 
     if not lapack_info:
@@ -55,19 +57,20 @@ def setup_miccs():
 
     setup(
         name='miccs',
-        version="0.0.1",
+        version="0.0.2",
         description="MICCS: Multiset Inverse Canonical Correlation Sparsification",
         author="Heejong Bong",
         author_email="hbong@andrew.cmu.edu",
         url="http://github.com/HeejongBong/miccs",
-        license="Academic Free License",
+        license="MIT License",
         classifiers=[
-            'License :: OSI Approved :: Academic Free License (AFL)',
-            'Programming Language :: Python :: 3',
+            'License :: OSI Approved :: MIT License',
+            'Programming Language :: Python :: 3.5',
             'Programming Language :: Fortran',
             'Topic :: Scientific/Engineering',
             ],
         packages = ['miccs'],
+        install_requires = ['numpy', 'matplotlib', 'scipy'],
         ext_modules = [ext])
 
 if __name__ == '__main__':

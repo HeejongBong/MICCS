@@ -1,19 +1,16 @@
-import time, sys
 import numpy as np
-from scipy.sparse import diags
-import matplotlib.pyplot as plt
 import miccs.miccs as mx
 
-def fit(populations, lambda_glasso, lambda_ridge, lambda_smooth,
-        offset_cross, offset_auto=None,
-        data_mode='spike', bin_width=40, ths=1e-4, max_iter=10000,
-        adj_sign=True, weights_init=None, verbose=True):
+def fit(populations, lambda_ridge, lambda_glasso_cross, offset_cross,
+        lambda_glasso_auto=0, offset_auto=1, 
+        ths=1e-4, max_iter=10000, verbose=False, verb_period=10,
+        data_mode='spike', bin_width=40, adj_sign=True):
     
     # get observation
     if data_mode == 'spike':
-        bin_num = int(np.ceil(populations[0].shape[0])/bin_width)
+        bin_num = int(populations[0].shape[0]/bin_width)
         observation = np.concatenate(
-            [np.sum(pop.reshape((bin_num, -1)+pop.shape[1:]),
+            [np.sum(pop[:bin_num*bin_width].reshape((bin_num, -1)+pop.shape[1:]),
                     axis=1).reshape((-1, pop.shape[2]))
              for pop in populations], axis=0)
         
@@ -23,35 +20,24 @@ def fit(populations, lambda_glasso, lambda_ridge, lambda_smooth,
                                       for pop in populations], axis=0)
     
     # get indices
-    indices = np.cumsum(np.concatenate([np.zeros(1),
-                np.concatenate([np.repeat(pop.shape[1], bin_num) 
-                                for pop in populations])])).astype(int)
+    dims_pop = np.concatenate([np.repeat(pop.shape[1], bin_num) 
+                               for pop in populations]).astype(int)
     
     # get full_graph
-    if offset_auto is None:
-        offset_auto = offset_cross
-    graph_auto = diags([1]*offset_auto+[-1]+[1]*offset_auto,
-                   offsets=np.arange(-offset_auto,offset_auto+1),
-                   shape=(bin_num,bin_num)).todense()
-    graph_cross = diags([1]*offset_cross+[1]+[1]*offset_cross,
-                       offsets=np.arange(-offset_cross,offset_cross+1),
-                       shape=(bin_num,bin_num)).todense()
-    full_graph = np.array(np.block(
-        [[graph_auto if j==i else graph_cross for j, _ in enumerate(populations)]
-         for i, _ in enumerate(populations)]))
-          
-    # get smooth_graph
-    smooth_auto = diags([1,1], offsets=[-1,1], 
-                    shape=(bin_num,bin_num)).todense()
-    smooth_cross = np.zeros((bin_num,bin_num))
-    smooth_graph = np.array(np.block(
-        [[smooth_auto if j==i else smooth_cross for j, _ in enumerate(populations)]
+    lambda_glasso_auto = _generate_lambda_glasso(bin_num, lambda_glasso_auto, 
+                                                 offset_auto, auto=True)
+    lambda_glasso_cross = _generate_lambda_glasso(bin_num, lambda_glasso_cross,
+                                                  offset_cross)
+    
+    lambda_glasso = np.array(np.block(
+        [[lambda_glasso_auto if j==i else lambda_glasso_cross
+          for j, _ in enumerate(populations)]
          for i, _ in enumerate(populations)]))
         
-    converged, precision, weights, latent, correlation =\
-        mx.fit(observation, full_graph, smooth_graph,
-              lambda_glasso, lambda_ridge, lambda_smooth,
-              indices, ths, max_iter, weights_init, verbose)
+    # run
+    converged, precision, correlation, latent, weights =\
+        mx.fit(observation, dims_pop, lambda_ridge, lambda_glasso,
+               ths, max_iter, verbose, verb_period)
     
     # adjust sign
     if converged and adj_sign:
@@ -86,7 +72,7 @@ def fit(populations, lambda_glasso, lambda_ridge, lambda_smooth,
         latent = latent * adj_sign.reshape((2*bin_num, 1))
         weights = [w*sgn for w, sgn in zip(weights, adj_sign)]
 
-    return converged, precision, weights, latent, correlation
+    return converged, precision, correlation, latent, weights
 
 def imshow(image, vmin=None, vmax=None, cmap='RdBu', time=None, time_stim=0):
     assert(image.ndim == 2)
@@ -97,14 +83,14 @@ def imshow(image, vmin=None, vmax=None, cmap='RdBu', time=None, time_stim=0):
         vmin = -np.max(np.abs(image))
     if vmax is None:
         vmax = np.max(np.abs(image))
-        
-    # get parameter
-    
-    # get figure
+            
+    # get figure   
     mx.imshow(image, cmap=cmap, vmin=vmin, vmax=vmax)
     
     if time:
         assert(len(time) == 2)
+        
+        import matplotlib.pyplot as plt
         bin_num = image.shape[0]
         plt.plot([-0.5,bin_num-0.5],[-0.5,bin_num-0.5], linewidth = 0.3, color='black')
         plt.gca().set_xticks(np.linspace(-0.5, bin_num-0.5,
@@ -122,3 +108,10 @@ def imshow(image, vmin=None, vmax=None, cmap='RdBu', time=None, time_stim=0):
             plt.plot([((time_stim-time[0])/(time[1]-time[0]))*bin_num-0.5]*2,
                      [-0.5,bin_num-0.5], 
                      linewidth=0.3, color='red')
+            
+def _generate_lambda_glasso(bin_num, lambda_glasso, offset, auto=False):
+    lambda_glasso_out = np.full((bin_num, bin_num), -1) + (1+lambda_glasso) * \
+           (np.abs(np.arange(bin_num) - np.arange(bin_num)[:,np.newaxis]) <= offset)
+    if auto:
+        lambda_glasso_out[np.arange(bin_num), np.arange(bin_num)] = 0
+    return lambda_glasso_out

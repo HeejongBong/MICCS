@@ -22,7 +22,7 @@ def fdp_hat(pvals, mask):
     else:
         return np.sum(mask*h(pvals)) / np.sum(mask)
     
-def score_smooth(pvals, mask, steps_em=5, sigma=1, mux_init=None):
+def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
     tdpvals_0 = np.where(mask, g(pvals), pvals)
     tdpvals_1 = sinv(tdpvals_0)
     if mux_init is None:
@@ -38,33 +38,7 @@ def score_smooth(pvals, mask, steps_em=5, sigma=1, mux_init=None):
         
     return mux
 
-def score_blobs(pvals, mask, steps_em=5):
-    tdpvals_0 = np.where(mask, g(pvals), pvals)
-    tdpvals_1 = sinv(tdpvals_0)
-    if mux_init is None:
-        mux_init = np.mean(-np.log(tdpvals_0))
-    mux = np.full(pvals.shape, mux_init)
-
-    denom_mux = np.ones(pvals.shape)
-    denom_mux[:-1,:] += 1; denom_mux[1:,:] += 1
-    denom_mux[:,1:] += 1; denom_mux[:,:-1] += 1
-
-    for _ in range(steps_em):
-        imputed_logpvals = ((tdpvals_0**(1/mux-1)*(-np.log(tdpvals_0)) +
-                             tdpvals_1**(1/mux-1)*(-np.log(tdpvals_1))) /
-                            (tdpvals_0**(1/mux-1)+tdpvals_1**(1/mux-1)/(-sdot(tdpvals_1))))
-
-        imputed_mux = np.copy(imputed_logpvals)
-        imputed_mux[:-1,:] += imputed_logpvals[1:,:]
-        imputed_mux[1:,:] += imputed_logpvals[:-1,:]
-        imputed_mux[:,1:] += imputed_logpvals[:,:-1]
-        imputed_mux[:,:-1] += imputed_logpvals[:,1:]
-        mux = imputed_mux / denom_mux
-        
-    return mux
-
-def seq_step(pvals, alpha = 0.05, prop_carve = 0.2, steps_em = 5,
-         score_fn = score_smooth, **kwargs):
+def STAR_seq_step(pvals, alpha = 0.05, prop_carve = 0.2, **kwargs):
     p = pvals.shape
     
     mask = np.full(p, True)    
@@ -76,7 +50,7 @@ def seq_step(pvals, alpha = 0.05, prop_carve = 0.2, steps_em = 5,
     R = np.sum(mask)
     R_min = R * (1-prop_carve)
     
-    score = score_fn(pvals, mask, steps_em, **kwargs)
+    score = score_fn(pvals, mask, **kwargs)
     
     while fdp > alpha:
         min_ind = np.unravel_index(
@@ -96,7 +70,7 @@ def seq_step(pvals, alpha = 0.05, prop_carve = 0.2, steps_em = 5,
         R = np.sum(mask)
 
         if R <= R_min:
-            score = score_fn(pvals, mask, steps_em, **kwargs)
+            score = score_fn(pvals, mask, **kwargs)
             R_min = R * (1-prop_carve)
 
         # if 2 / (1+R) > alpha:

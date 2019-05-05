@@ -105,3 +105,5 @@ subroutine coord_desc(converged, prec, corr, latent, weight, & !outputs
     end do
     
 end subroutine coord_desc
+        
+        

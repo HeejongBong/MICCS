@@ -2,8 +2,7 @@ import time
 import numpy as np
 from miccs.optimize import coord_desc
 
-def fit(observation, dims_pop, lambda_ridge, lambda_glasso,
-        ths=1e-4, max_iter=10000, verbose=False, verb_period=10):
+def fit(observation, dims_pop, lambda_ridge, lambda_glasso, **kwargs):
     
     # check on observation and dims_pop
     if observation[0].ndim == 2:
@@ -24,6 +23,11 @@ def fit(observation, dims_pop, lambda_ridge, lambda_glasso,
     # check on lambda_glasso                   
     assert(lambda_glasso.shape == (dims_pop.shape[0], dims_pop.shape[0]))
     
+    # check on initial weight
+    if 'weights_init' in kwargs:
+        kwargs['weight_init'] = np.concatenate(kwargs['weights_init'])
+        kwargs.pop('weights_init')
+    
     # initial setting
     start_time = time.time()
     console = open('/dev/stdout', 'w')
@@ -31,7 +35,7 @@ def fit(observation, dims_pop, lambda_ridge, lambda_glasso,
     # run
     converged, precision, correlation, latent, weight = \
         coord_desc(observation, dims_pop, lambda_ridge, lambda_glasso,
-                   ths, max_iter, verbose, verb_period)       
+                   **kwargs)       
     if converged:
         console.write("Converged, total lapse: %fs\n"
                                  %(time.time() - start_time))

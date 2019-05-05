@@ -3,8 +3,7 @@ import miccs.miccs as mx
 
 def fit(populations, lambda_ridge, lambda_glasso_cross, offset_cross,
         lambda_glasso_auto=0, offset_auto=1, 
-        ths=1e-4, max_iter=10000, verbose=False, verb_period=10,
-        data_mode='spike', bin_width=40, adj_sign=True):
+        data_mode='spike', bin_width=40, adj_sign=True, **kwargs):
     
     # get observation
     if data_mode == 'spike':
@@ -36,8 +35,7 @@ def fit(populations, lambda_ridge, lambda_glasso_cross, offset_cross,
         
     # run
     converged, precision, correlation, latent, weights =\
-        mx.fit(observation, dims_pop, lambda_ridge, lambda_glasso,
-               ths, max_iter, verbose, verb_period)
+        mx.fit(observation, dims_pop, lambda_ridge, lambda_glasso, **kwargs)
     
     # adjust sign
     if converged and adj_sign:

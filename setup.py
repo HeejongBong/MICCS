@@ -57,7 +57,7 @@ def setup_miccs():
 
     setup(
         name='miccs',
-        version="0.0.2",
+        version="0.0.3",
         description="MICCS: Multiset Inverse Canonical Correlation Sparsification",
         author="Heejong Bong",
         author_email="hbong@andrew.cmu.edu",

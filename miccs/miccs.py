@@ -49,6 +49,8 @@ def fit(observation, dims_pop, lambda_ridge, lambda_glasso, **kwargs):
     return converged, precision, correlation, latent, weights 
 
 def imshow(image, vmin=None, vmax=None, cmap='RdBu'):
+    image = np.array(image).astype(float)
+    
     assert(image.ndim == 2)
     assert(image.shape[0] == image.shape[1])
 

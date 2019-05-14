@@ -20,7 +20,7 @@ def fdp_hat(pvals, mask):
     if np.sum(mask) == 0:
         return 0
     else:
-        return np.sum(mask*h(pvals)) / np.sum(mask)
+        return (2 + np.sum(mask*h(pvals))) / (1+np.sum(mask))
     
 def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
     tdpvals_0 = np.where(mask, g(pvals), pvals)
@@ -73,7 +73,7 @@ def STAR_seq_step(pvals, alpha = 0.05, prop_carve = 0.2, **kwargs):
             score = score_fn(pvals, mask, **kwargs)
             R_min = R * (1-prop_carve)
 
-        # if 2 / (1+R) > alpha:
-        #     break
+        if 2 / (1+R) > alpha:
+            return 0, 0, score, np.full(p, False)
             
     return R, fdp, score, mask

@@ -20,7 +20,7 @@ def fdp_hat(pvals, mask):
     if np.sum(mask) == 0:
         return 0
     else:
-        return (2 + np.sum(mask*h(pvals))) / (1+np.sum(mask))
+        return (2 + np.sum(mask*h(pvals))) / (1 + np.sum(mask))
     
 def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
     tdpvals_0 = np.where(mask, g(pvals), pvals)
@@ -38,11 +38,20 @@ def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
         
     return mux
 
-def STAR_seq_step(pvals, alpha = 0.05, prop_carve = 0.2, **kwargs):
-    p = pvals.shape
+def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, **kwargs):
+    if isinstance(alphas, float):
+        alphas = [alphas]
+    alphas = np.array(alphas)
     
-    mask = np.full(p, True)    
-    boundary = np.full(p, False)
+    # output value
+    masks = np.full(alphas.shape + pvals.shape, False)
+    scores = np.zeros(alphas.shape + pvals.shape)
+    fdps = np.zeros(alphas.shape)
+    Rs = np.zeros(alphas.shape)
+            
+    # initial value        
+    mask = np.full(pvals.shape, True)    
+    boundary = np.full(pvals.shape, False)
     boundary[0,:] = True; boundary[-1,:] = True
     boundary[:,0] = True; boundary[:,-1] = True
     
@@ -51,29 +60,41 @@ def STAR_seq_step(pvals, alpha = 0.05, prop_carve = 0.2, **kwargs):
     R_min = R * (1-prop_carve)
     
     score = score_fn(pvals, mask, **kwargs)
+    alpha_last = np.inf
     
-    while fdp > alpha:
-        min_ind = np.unravel_index(
-            np.argmin(score + np.where(mask & boundary, 0, np.inf)), 
-            mask.shape)
-        mask[min_ind] = False
-        if min_ind[0] > 0:
-            boundary[min_ind[0]-1, min_ind[1]] = True
-        if min_ind[0] < p[0]-1:
-            boundary[min_ind[0]+1, min_ind[1]] = True
-        if min_ind[1] > 0:
-            boundary[min_ind[0], min_ind[1]-1] = True
-        if min_ind[1] < p[1]-1:
-            boundary[min_ind[0], min_ind[1]+1] = True
+    while np.any(alphas < alpha_last):  
+        alpha = np.max(alphas[alphas < alpha_last])
+        
+        while fdp > alpha:
+            min_ind = np.unravel_index(
+                np.argmin(score + np.where(mask & boundary, 0, np.inf)), 
+                mask.shape)
+            mask[min_ind] = False
+            if min_ind[0] > 0:
+                boundary[min_ind[0]-1, min_ind[1]] = True
+            if min_ind[0] < pvals.shape[0]-1:
+                boundary[min_ind[0]+1, min_ind[1]] = True
+            if min_ind[1] > 0:
+                boundary[min_ind[0], min_ind[1]-1] = True
+            if min_ind[1] < pvals.shape[1]-1:
+                boundary[min_ind[0], min_ind[1]+1] = True
 
-        fdp = fdp_hat(pvals, mask)
-        R = np.sum(mask)
+            fdp = fdp_hat(pvals, mask)
+            R = np.sum(mask)
+                        
+            if 2 / (1+R) > alpha:
+                scores[np.logical_and(alphas < alpha_last)] = score
+                return Rs, fdps, scores, masks
 
-        if R <= R_min:
-            score = score_fn(pvals, mask, **kwargs)
-            R_min = R * (1-prop_carve)
-
-        if 2 / (1+R) > alpha:
-            return 0, 0, score, np.full(p, False)
+            if R <= R_min:
+                score = score_fn(pvals, mask, **kwargs)
+                R_min = R * (1-prop_carve)
+        
+        masks[np.logical_and(alphas >= fdp, alphas < alpha_last)] = mask
+        scores[np.logical_and(alphas >= fdp, alphas < alpha_last)] = score
+        fdps[np.logical_and(alphas >= fdp, alphas < alpha_last)] = fdp
+        Rs[np.logical_and(alphas >= fdp, alphas < alpha_last)] = R
+        
+        alpha_last = fdp
             
-    return R, fdp, score, mask
+    return Rs, fdps, scores, masks

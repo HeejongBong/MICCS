@@ -72,27 +72,31 @@ def fit(populations, lambda_ridge, lambda_glasso_cross, offset_cross,
 
     return converged, precision, correlation, latent, weights
 
-def imshow(image, vmin=None, vmax=None, cmap='RdBu', time=None, time_stim=0):
+def imshow(image, vmin=None, vmax=None, cmap='RdBu', time=None, time_stim=None, 
+           identity=False):
     image = np.array(image).astype(float)
+    bin_num = image.shape[0]
 
     assert(image.ndim == 2)
     assert(image.shape[0] == image.shape[1])
     
     # get vmin, vmax
     if vmin is None:
-        vmin = -np.max(np.abs(image))
+        vmin = -np.maximum(np.max(np.abs(image)), 1e-10)
     if vmax is None:
-        vmax = np.max(np.abs(image))
+        vmax = np.maximum(np.max(np.abs(image)), 1e-10)
             
     # get figure   
     mx.imshow(image, cmap=cmap, vmin=vmin, vmax=vmax)
+    
+    if identity:
+        import matplotlib.pyplot as plt
+        plt.plot([-0.5,bin_num-0.5],[-0.5,bin_num-0.5], linewidth = 0.3, color='black')        
     
     if time:
         assert(len(time) == 2)
         
         import matplotlib.pyplot as plt
-        bin_num = image.shape[0]
-        plt.plot([-0.5,bin_num-0.5],[-0.5,bin_num-0.5], linewidth = 0.3, color='black')
         plt.gca().set_xticks(np.linspace(-0.5, bin_num-0.5,
                                          int((time[1]-time[0])/.5+1)))
         plt.gca().set_xticklabels(np.linspace(time[0], time[1],

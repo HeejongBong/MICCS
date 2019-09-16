@@ -83,7 +83,7 @@ def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, **kwargs):
             R = np.sum(mask)
                         
             if 2 / (1+R) > alpha:
-                scores[np.logical_and(alphas < alpha_last)] = score
+                scores[alphas < alpha_last] = score
                 return Rs, fdps, scores, masks
 
             if R <= R_min:

@@ -46,7 +46,8 @@ def setup_miccs():
     lapack_info = get_info('lapack_opt',1)
     sources = ['miccs/optimize/coord_desc.f90', 'miccs/optimize/coord_desc_init.f90',
                'miccs/optimize/coord_desc_iter.f90', 
-               'miccs/optimize/coord_desc_iter_p.f90']
+               'miccs/optimize/coord_desc_iter_p.f90', 'miccs/optimize/lasso.f90',
+               'miccs/optimize/glasso.f90', 'miccs/optimize/glasso_p.f90']
 
     if lapack_info:
         ext = Extension(name='miccs.optimize', sources=sources,

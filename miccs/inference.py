@@ -16,11 +16,11 @@ def sinv(tdpvals):
 def sdot(pvals):
     return -1
 
-def fdp_hat(pvals, mask):
+def fdp_hat(pvals, mask, reg):
     if np.sum(mask) == 0:
         return 0
     else:
-        return (2 + np.sum(mask*h(pvals))) / (1 + np.sum(mask))
+        return (2 * reg + np.sum(mask*h(pvals))) / (reg + np.sum(mask))
     
 def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
     tdpvals_0 = np.where(mask, g(pvals), pvals)
@@ -38,11 +38,20 @@ def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
         
     return mux
 
-def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, **kwargs):
+def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, reg = 1, roi = None, **kwargs):
     if isinstance(alphas, float):
-        alphas = [alphas]
+        alphas = [alphas] 
     alphas = np.array(alphas)
     
+    if roi is None:
+        roi = np.full(pvals.shape, True)
+        
+    boi = np.any(roi > np.stack([
+        np.concatenate([np.zeros(roi[:1].shape), roi[:-1]], 0),
+        np.concatenate([roi[1:], np.zeros(roi[-1:].shape)], 0),
+        np.concatenate([np.zeros(roi[:,:1].shape), roi[:,:-1]], 1),
+        np.concatenate([roi[:,1:], np.zeros(roi[:,-1:].shape)], 1)], 0),0)
+        
     # output value
     masks = np.full(alphas.shape + pvals.shape, False)
     scores = np.zeros(alphas.shape + pvals.shape)
@@ -50,12 +59,10 @@ def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, **kwargs):
     Rs = np.zeros(alphas.shape)
             
     # initial value        
-    mask = np.full(pvals.shape, True)    
-    boundary = np.full(pvals.shape, False)
-    boundary[0,:] = True; boundary[-1,:] = True
-    boundary[:,0] = True; boundary[:,-1] = True
+    mask = roi.copy()
+    boundary = boi.copy()
     
-    fdp = fdp_hat(pvals, mask)
+    fdp = fdp_hat(pvals, mask, reg)
     R = np.sum(mask)
     R_min = R * (1-prop_carve)
     
@@ -79,10 +86,10 @@ def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, **kwargs):
             if min_ind[1] < pvals.shape[1]-1:
                 boundary[min_ind[0], min_ind[1]+1] = True
 
-            fdp = fdp_hat(pvals, mask)
+            fdp = fdp_hat(pvals, mask, reg)
             R = np.sum(mask)
                         
-            if 2 / (1+R) > alpha:
+            if 2*reg / (reg + R) > alpha:
                 scores[alphas < alpha_last] = score
                 return Rs, fdps, scores, masks
 

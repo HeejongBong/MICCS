@@ -16,11 +16,11 @@ def sinv(tdpvals):
 def sdot(pvals):
     return -1
 
-def fdp_hat(pvals, mask, reg):
+def fdp_hat(pvals, mask):
     if np.sum(mask) == 0:
         return 0
     else:
-        return (2 * reg + np.sum(mask*h(pvals))) / (reg + np.sum(mask))
+        return (2 + np.sum(mask*h(pvals))) / (1 + np.sum(mask))
     
 def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
     tdpvals_0 = np.where(mask, g(pvals), pvals)
@@ -38,7 +38,7 @@ def score_fn(pvals, mask, steps_em=5, sigma=1, mux_init=None):
         
     return mux
 
-def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, reg = 1, roi = None, **kwargs):
+def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, roi = None, **kwargs):
     if isinstance(alphas, float):
         alphas = [alphas] 
     alphas = np.array(alphas)
@@ -62,7 +62,7 @@ def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, reg = 1, roi = None,
     mask = roi.copy()
     boundary = boi.copy()
     
-    fdp = fdp_hat(pvals, mask, reg)
+    fdp = fdp_hat(pvals, mask)
     R = np.sum(mask)
     R_min = R * (1-prop_carve)
     
@@ -86,10 +86,10 @@ def STAR_seq_step(pvals, alphas = [0.05], prop_carve = 0.2, reg = 1, roi = None,
             if min_ind[1] < pvals.shape[1]-1:
                 boundary[min_ind[0], min_ind[1]+1] = True
 
-            fdp = fdp_hat(pvals, mask, reg)
+            fdp = fdp_hat(pvals, mask)
             R = np.sum(mask)
                         
-            if 2*reg / (reg + R) > alpha:
+            if 2 / (1 + R) > alpha:
                 scores[alphas < alpha_last] = score
                 return Rs, fdps, scores, masks
 
